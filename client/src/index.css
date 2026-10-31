@@ -1,0 +1,20 @@
+@import '@lark-apaas/client-toolkit/lib/index.css';
+@import "tw-animate-css";
+@import "./tailwind-theme.css";
+
+@config "../../tailwind.config.ts";
+
+html, body, #root {
+  height: 100%;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
