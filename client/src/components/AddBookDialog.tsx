@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Sparkles,
@@ -135,7 +136,7 @@ const AddBookDialog = ({ open, onClose, onAdded }: AddBookDialogProps) => {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
       onClick={handleBackdropClick}
@@ -437,7 +438,8 @@ const AddBookDialog = ({ open, onClose, onAdded }: AddBookDialogProps) => {
         .animate-slide-up { animation: slideUp 0.3s ease-out; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out; }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

@@ -12,7 +12,7 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-background text-foreground flex justify-center">
       <div className="w-full max-w-[480px] bg-background relative flex flex-col min-h-screen">
-        <main className="flex-1 pb-[calc(100px+env(safe-area-inset-bottom))]">
+          <main className="flex-1 pb-[calc(60px+env(safe-area-inset-bottom))]">
           <div className="pb-6">
             <Outlet />
           </div>

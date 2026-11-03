@@ -12,7 +12,7 @@ const ReadPage = () => {
   const navigate = useNavigate();
   const bookId = searchParams.get('bookId');
 
-  const { book, nodes, rootNode, loading, refresh } = useReader(bookId);
+  const { book, chapters, nodes, rootNode, loading, refresh } = useReader(bookId);
   const [showMenu, setShowMenu] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const apiKeyConfigured = aiService.isConfigured();
@@ -211,7 +211,7 @@ const ReadPage = () => {
           </p>
         </div>
         {book.isDemo && (
-          <span className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 font-medium">
+            <span className="hidden flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium sm:inline-block">
             演示数据
           </span>
         )}
@@ -291,17 +291,18 @@ const ReadPage = () => {
         </div>
       </div>
 
-      {/* 知识树内容区 */}
-      <div
-        className="flex-1 overflow-y-auto px-2 pb-[calc(60px+env(safe-area-inset-bottom))]"
-        data-ai-section-type="card-list"
-      >
-        <div className="py-2">
-          <KnowledgeTree nodes={nodes} rootNode={rootNode} />
+      {/* 内容区 */}
+        <div
+          className="flex-1 overflow-y-auto px-2 pb-[calc(60px+env(safe-area-inset-bottom))]"
+          data-ai-section-type="card-list"
+        >
+          <div className="py-2">
+            <KnowledgeTree nodes={nodes} rootNode={rootNode} author={book?.author} />
+          </div>
         </div>
-      </div>
     </div>
   );
 };
+
 
 export default ReadPage;

@@ -1,6 +1,6 @@
 {
   "name": "fullstack-nestjs-template",
-  "version": "2.3.0",
+  "version": "3.0.0",
   "private": true,
   "flags": {
     "supportBusinessUser": true,
@@ -54,8 +54,8 @@
   },
   "devDependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@lark-apaas/client-toolkit": "^1.2.76",
-    "@lark-apaas/coding-preset-vite-react": "^1.0.26",
+    "@lark-apaas/client-toolkit": "^1.2.78",
+    "@lark-apaas/coding-preset-vite-react": "^1.0.27",
     "@lark-apaas/fullstack-presets": "^1.1.25",
     "@nestjs/cli": "^10.4.9",
     "@radix-ui/react-accordion": "^1.2.12",

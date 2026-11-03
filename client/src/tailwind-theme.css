@@ -63,7 +63,6 @@
   --destructive-border: hsl(from hsl(0_60%_55%) h s calc(l + var(--opaque-button-border-intensity)));
   --accent-border: hsl(from var(--highlight) h s calc(l + var(--opaque-button-border-intensity)));
   --muted-border: hsl(from var(--highlight) h s calc(l + var(--opaque-button-border-intensity)));
-
   --font-sans:
     'LarkHackSafariFont', 'LarkEmojiFont', 'LarkChineseQuote', '-apple-system',
     'BlinkMacSystemFont', 'Helvetica Neue', 'Tahoma', 'PingFang SC',
@@ -198,6 +197,7 @@
 
   /**
    * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
+   * This way they can stack/compound. Both will overlap the parent's borders!
    * So borders will be automatically adjusted both on toggle, and hover/active,
    * and they will be compounded.
    */
@@ -241,7 +241,7 @@
     inset: 0px;
     /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
-    z-index: 999;
+    z-index: 1;
     /* sits in front of content */
   }
 

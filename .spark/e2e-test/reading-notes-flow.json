@@ -1,0 +1,13 @@
+{"cases":[
+  {"id":101,"priority":"p0","description":"书架页加载示例文章后，进入阅读页显示精读笔记形态：全景总览（书名+一句话总览+统计）"},
+  {"id":102,"priority":"p0","description":"精读笔记页显示板块卡片，每个板块有标题、摘要和要点列表"},
+  {"id":103,"priority":"p0","description":"要点带有浓缩正文内容（不是原文堆砌）"},
+  {"id":104,"priority":"p1","description":"展开 element 元素可见实例/金句/数据标签和内容"},
+  {"id":105,"priority":"p1","description":"点击「回溯原文」可展开对应的原文片段"},
+  {"id":106,"priority":"p0","description":"用真实 AI 重新生成示例文章后，知识树为精读笔记形态且无「演示」标签"},
+  {"id":107,"priority":"p1","description":"真实 AI 生成的精读笔记包含实例/金句/数据等元素类型"},
+  {"id":201,"priority":"p0","description":"AI 处理页已完成的示例书籍卡片含「重新生成演示知识树」和「配置 API Key 用真实 AI 生成」两个按钮"},
+  {"id":202,"priority":"p0","description":"点击「重新生成演示知识树」后，书籍状态变为处理中，流程可重新跑一遍并回到 done"},
+  {"id":203,"priority":"p0","description":"阅读页顶部右侧有「⋯」更多按钮，点击弹出含「重新生成演示知识树」的操作菜单"},
+  {"id":204,"priority":"p1","description":"阅读页更多菜单里含「配置 API Key」入口，点击跳转到设置页"}
+]}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ChevronDown,
   ChevronRight,
@@ -11,11 +11,59 @@ import {
   ELEMENT_COLORS,
 } from '@client/src/types/book';
 import type { KnowledgeNode, ElementType } from '@client/src/types/book';
-import { db } from '@client/src/services/db';
+import { Markdown } from '@client/src/components/ui/markdown';
+import type { Components } from 'react-markdown';
+
+const mdComponents: Components = {
+  h2: ({ children }) => (
+    <h2 className="text-lg font-semibold text-foreground mt-6 mb-3 pb-2 border-b border-border/50">
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-base font-semibold text-foreground mt-5 mb-2">
+      {children}
+    </h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="text-sm font-semibold text-foreground mt-4 mb-1.5">
+      {children}
+    </h4>
+  ),
+  p: ({ children }) => (
+    <p className="text-sm text-foreground/90 leading-relaxed my-2">
+      {children}
+    </p>
+  ),
+  ul: ({ children }) => (
+    <ul className="list-disc pl-5 my-2 space-y-1.5 marker:text-primary">
+      {children}
+    </ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="list-decimal pl-5 my-2 space-y-1.5 marker:text-primary marker:font-semibold">
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => (
+    <li className="text-sm text-foreground/90 leading-relaxed pl-1">
+      {children}
+    </li>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-4 border-primary pl-4 py-2 bg-accent/30 rounded-r-xl my-3 italic text-foreground/85 text-sm">
+      {children}
+    </blockquote>
+  ),
+  strong: ({ children }) => (
+    <strong className="text-foreground font-semibold">{children}</strong>
+  ),
+};
 
 interface KnowledgeTreeProps {
   nodes: KnowledgeNode[];
   rootNode: KnowledgeNode | null;
+  author?: string;
 }
 
 const getChildren = (
@@ -23,39 +71,6 @@ const getChildren = (
   parentId: string,
 ): KnowledgeNode[] => {
   return allNodes.filter((n: KnowledgeNode) => n.parentId === parentId);
-};
-
-const findNodeById = (
-  allNodes: KnowledgeNode[],
-  id: string,
-): KnowledgeNode | undefined => {
-  return allNodes.find((n: KnowledgeNode) => n.id === id);
-};
-
-const ExampleCard = ({ example }: { example: KnowledgeNode }) => {
-  const exampleType = (example.elementType ?? 'example') as ElementType;
-  const label = ELEMENT_LABELS[exampleType] || '例';
-  const colorClass = ELEMENT_COLORS[exampleType] || 'bg-secondary text-muted-foreground';
-
-  return (
-    <div className="bg-secondary rounded-xl p-3">
-      <div className="flex items-start gap-2 mb-1.5">
-        <span
-          className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-md font-medium ${colorClass}`}
-        >
-          {label}
-        </span>
-        <h5 className="text-sm font-medium text-foreground leading-snug">
-          {example.title}
-        </h5>
-      </div>
-      {example.content && (
-        <p className="text-sm text-foreground/85 leading-relaxed pl-1 whitespace-pre-wrap">
-          {example.content}
-        </p>
-      )}
-    </div>
-  );
 };
 
 interface OriginalQuotesProps {
@@ -73,7 +88,7 @@ const OriginalQuotes = ({ groupNode, allNodes }: OriginalQuotesProps) => {
   if (quotes.length === 0) return null;
 
   return (
-    <div className="mt-2">
+    <div className="mt-2 ml-4">
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
@@ -92,7 +107,7 @@ const OriginalQuotes = ({ groupNode, allNodes }: OriginalQuotesProps) => {
           {quotes.map((q: KnowledgeNode) => (
             <div
               key={q.id}
-              className="bg-accent/60 rounded-lg p-3 border-l-2 border-primary/40"
+              className="bg-accent/40 rounded-lg p-3 border-l-2 border-primary/40"
             >
               <p className="text-sm text-foreground/90 leading-relaxed italic">
                 "{q.content}"
@@ -110,25 +125,17 @@ const OriginalQuotes = ({ groupNode, allNodes }: OriginalQuotesProps) => {
   );
 };
 
-interface PointNodeProps {
+interface PointItemProps {
   node: KnowledgeNode;
   allNodes: KnowledgeNode[];
-  depth: number;
 }
 
-const PointNode = ({ node, allNodes, depth }: PointNodeProps) => {
-  const [expanded, setExpanded] = useState(depth === 0);
+const PointItem = ({ node, allNodes }: PointItemProps) => {
   const children = useMemo(
     () => getChildren(allNodes, node.id),
     [allNodes, node.id],
   );
 
-  const subpoints = children.filter(
-    (c: KnowledgeNode) =>
-      (c.nodeType === 'subpoint' || (!c.nodeType && c.level === 3 && children.length > 0)) &&
-      c.nodeType !== 'action_item' &&
-      c.nodeType !== 'action_list',
-  );
   const examples = children.filter(
     (c: KnowledgeNode) => c.nodeType === 'element',
   );
@@ -136,93 +143,96 @@ const PointNode = ({ node, allNodes, depth }: PointNodeProps) => {
     (c: KnowledgeNode) => c.nodeType === 'original_quote_group',
   );
 
-  const hasContent = subpoints.length > 0 || examples.length > 0 || node.content || quoteGroup;
+  return (
+    <div className="flex gap-2">
+      <span className="text-primary mt-1.5 flex-shrink-0 text-xs leading-none">
+        •
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm leading-relaxed text-foreground/90">
+          <span className="font-semibold text-foreground">{node.title}：</span>
+          {node.content || ''}
+        </p>
+        {examples.length > 0 && (
+          <div className="mt-1.5 space-y-1">
+            {examples.map((el: KnowledgeNode) => {
+              const exampleType = (el.elementType ?? 'example') as ElementType;
+              const label = ELEMENT_LABELS[exampleType] || '例';
+              const colorClass = ELEMENT_COLORS[exampleType] || 'bg-secondary text-muted-foreground';
+              return (
+                <div key={el.id} className="text-xs text-muted-foreground pl-3">
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium mr-1 ${colorClass}`}>
+                    {label}
+                  </span>
+                  <span className="font-medium text-foreground/80">{el.title}</span>
+                  {el.content && <span> — {el.content}</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {quoteGroup && (
+          <OriginalQuotes groupNode={quoteGroup} allNodes={allNodes} />
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface SubsectionProps {
+  node: KnowledgeNode;
+  allNodes: KnowledgeNode[];
+}
+
+const Subsection = ({ node, allNodes }: SubsectionProps) => {
+  const children = useMemo(
+    () => getChildren(allNodes, node.id),
+    [allNodes, node.id],
+  );
+
+  const points = children.filter(
+    (c: KnowledgeNode) => c.nodeType === 'point' || !c.nodeType,
+  );
+  const quoteGroup = children.find(
+    (c: KnowledgeNode) => c.nodeType === 'original_quote_group',
+  );
+
+  const hasSubPoints = points.length > 0;
+
+  if (!hasSubPoints) {
+    return (
+      <div className="mt-2">
+        <PointItem node={node} allNodes={allNodes} />
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-xl overflow-hidden">
-      <button
-        type="button"
-        onClick={() => hasContent && setExpanded((prev) => !prev)}
-        className={`w-full text-left py-2.5 flex items-start gap-2 ${
-          hasContent ? 'active:scale-[0.98] transition-transform hover:bg-accent/40' : ''
-        }`}
-        style={{ paddingLeft: `${8 + depth * 12}px`, paddingRight: '12px' }}
-        disabled={!hasContent}
-      >
-        {hasContent ? (
-          <span className="flex-shrink-0 mt-0.5 text-primary">
-            {expanded ? (
-              <ChevronDown size={15} />
-            ) : (
-              <ChevronRight size={15} />
-            )}
-          </span>
-        ) : (
-          <span className="flex-shrink-0 w-3.5 mt-0.5" />
-        )}
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-foreground leading-snug">
-            {node.title}
-          </h4>
-          {!expanded && node.content && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-              {node.content}
-            </p>
-          )}
-          {!expanded && examples.length > 0 && (
-            <p className="text-xs text-primary mt-1 font-medium">
-              {examples.length} 个相关例子
-            </p>
-          )}
-        </div>
-      </button>
-
-      {expanded && (
-        <div
-          className="pb-3 space-y-2"
-          style={{ paddingLeft: `${20 + depth * 12}px`, paddingRight: '12px' }}
-        >
-          {node.content && (
-            <p className="text-sm leading-relaxed text-foreground/90">
-              {node.content}
-            </p>
-          )}
-          {examples.length > 0 && (
-            <div className="space-y-2 pt-1">
-              {examples.map((el: KnowledgeNode) => (
-                <ExampleCard key={el.id} example={el} />
-              ))}
-            </div>
-          )}
-          {quoteGroup && (
-            <OriginalQuotes groupNode={quoteGroup} allNodes={allNodes} />
-          )}
-          {subpoints.length > 0 && (
-            <div className="bg-card/60 rounded-lg border border-border/30">
-              {subpoints.map((sp: KnowledgeNode) => (
-                <PointNode
-                  key={sp.id}
-                  node={sp}
-                  allNodes={allNodes}
-                  depth={depth + 1}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+    <div className="mt-3">
+      <h4 className="text-sm font-semibold text-foreground mb-2">
+        {node.title}
+      </h4>
+      {node.content && (
+        <p className="text-xs text-muted-foreground mb-2">{node.content}</p>
+      )}
+      <div className="space-y-1.5">
+        {points.map((p: KnowledgeNode) => (
+          <PointItem key={p.id} node={p} allNodes={allNodes} />
+        ))}
+      </div>
+      {quoteGroup && (
+        <OriginalQuotes groupNode={quoteGroup} allNodes={allNodes} />
       )}
     </div>
   );
 };
 
-interface SectionCardProps {
+interface SectionBlockProps {
   section: KnowledgeNode;
-  index: number;
   allNodes: KnowledgeNode[];
 }
 
-const SectionCard = ({ section, index, allNodes }: SectionCardProps) => {
-  const [expanded, setExpanded] = useState(true);
+const SectionBlock = ({ section, allNodes }: SectionBlockProps) => {
   const subsections = useMemo(
     () => getChildren(allNodes, section.id).filter(
       (n: KnowledgeNode) => n.nodeType === 'point' || !n.nodeType,
@@ -231,48 +241,20 @@ const SectionCard = ({ section, index, allNodes }: SectionCardProps) => {
   );
 
   return (
-    <div className="bg-secondary/80 rounded-2xl shadow-sm border border-border/40 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setExpanded((prev) => !prev)}
-        className="w-full text-left p-5 active:scale-[0.98] transition-transform hover:bg-accent/20"
-      >
-        <div className="flex items-start gap-3">
-          <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center">
-            {index + 1}
-          </span>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-foreground leading-snug">
-              {section.title}
-            </h3>
-            {section.summary && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {section.summary}
-              </p>
-            )}
-          </div>
-          <span className="flex-shrink-0 mt-1 text-primary">
-            {expanded ? (
-              <ChevronDown size={18} />
-            ) : (
-              <ChevronRight size={18} />
-            )}
-          </span>
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="px-3 pb-4">
-          <div className="bg-card/60 rounded-xl p-2">
-            {subsections.map((sub: KnowledgeNode) => (
-              <PointNode
-                key={sub.id}
-                node={sub}
-                allNodes={allNodes}
-                depth={0}
-              />
-            ))}
-          </div>
+    <div>
+      <h3 className="text-lg font-bold text-foreground mb-1">
+        {section.title}
+      </h3>
+      {section.summary && (
+        <p className="text-sm text-muted-foreground mb-3">
+          {section.summary}
+        </p>
+      )}
+      {subsections.length > 0 && (
+        <div className="space-y-1">
+          {subsections.map((sub: KnowledgeNode) => (
+            <Subsection key={sub.id} node={sub} allNodes={allNodes} />
+          ))}
         </div>
       )}
     </div>
@@ -285,7 +267,7 @@ interface ClosingSectionProps {
 
 const ClosingSection = ({ closingNode }: ClosingSectionProps) => {
   return (
-    <blockquote className="border-l-4 border-primary pl-5 py-2">
+    <blockquote className="border-l-4 border-primary pl-5 py-2 bg-accent/30 rounded-r-xl">
       <p className="text-base text-foreground/90 leading-relaxed font-medium italic">
         {closingNode.content}
       </p>
@@ -293,7 +275,7 @@ const ClosingSection = ({ closingNode }: ClosingSectionProps) => {
   );
 };
 
-const KnowledgeTree = ({ nodes, rootNode }: KnowledgeTreeProps) => {
+const KnowledgeTree = ({ nodes, rootNode, author }: KnowledgeTreeProps) => {
   const topLevel = useMemo(() => {
     if (!rootNode) return [];
     return nodes.filter((n: KnowledgeNode) => n.parentId === rootNode.id);
@@ -309,6 +291,11 @@ const KnowledgeTree = ({ nodes, rootNode }: KnowledgeTreeProps) => {
     [topLevel],
   );
 
+  const contentNode = useMemo(
+    () => topLevel.find((n: KnowledgeNode) => n.nodeType === 'content_markdown'),
+    [topLevel],
+  );
+
   const sectionNodes = useMemo(
     () => topLevel.filter(
       (n: KnowledgeNode) =>
@@ -321,12 +308,22 @@ const KnowledgeTree = ({ nodes, rootNode }: KnowledgeTreeProps) => {
     [topLevel],
   );
 
-  const totalPoints = useMemo(() => {
-    return sectionNodes.reduce((acc: number, s: KnowledgeNode) => {
+  const { sectionCount, pointCount } = useMemo(() => {
+    if (contentNode && contentNode.content) {
+      const md = contentNode.content;
+      const h2Matches = md.match(/^##\s/gm);
+      const bulletMatches = md.match(/^[-*]\s/gm);
+      return {
+        sectionCount: h2Matches ? h2Matches.length : 0,
+        pointCount: bulletMatches ? bulletMatches.length : 0,
+      };
+    }
+    const totalPoints = sectionNodes.reduce((acc: number, s: KnowledgeNode) => {
       const subs = nodes.filter((n: KnowledgeNode) => n.parentId === s.id);
       return acc + subs.length;
     }, 0);
-  }, [sectionNodes, nodes]);
+    return { sectionCount: sectionNodes.length, pointCount: totalPoints };
+  }, [contentNode, sectionNodes, nodes]);
 
   if (!rootNode || nodes.length === 0) {
     return (
@@ -337,7 +334,7 @@ const KnowledgeTree = ({ nodes, rootNode }: KnowledgeTreeProps) => {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* 全景总览区 */}
       <div className="bg-gradient-to-br from-primary/10 to-accent rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-3">
@@ -346,11 +343,11 @@ const KnowledgeTree = ({ nodes, rootNode }: KnowledgeTreeProps) => {
             知识树全景
           </span>
         </div>
-        <h1 className="text-xl font-bold text-foreground leading-tight mb-2">
+        <h1 className="text-xl font-bold text-foreground leading-tight mb-1">
           {rootNode.title}
         </h1>
-        {rootNode.content && (
-          <p className="text-xs text-muted-foreground mb-3">{rootNode.content}</p>
+        {author && (
+          <p className="text-sm text-muted-foreground mb-3">作者：{author}</p>
         )}
         {rootNode.summary && (
           <div className="mb-3 px-3 py-2 bg-primary/10 rounded-xl border border-primary/20">
@@ -362,15 +359,15 @@ const KnowledgeTree = ({ nodes, rootNode }: KnowledgeTreeProps) => {
         )}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/80 text-xs text-muted-foreground">
           <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-          共 {sectionNodes.length} 板块 · {totalPoints} 子议题
+          共 {sectionCount} 板块 · {pointCount} 要点
         </div>
       </div>
 
       {/* 导语区 */}
       {introNode && introNode.content && (
-        <div className="bg-card rounded-2xl p-5 shadow-sm border border-border/40">
+        <div className="bg-card/60 rounded-2xl p-5 border border-border/40">
           <div className="flex items-center gap-2 mb-3">
-            <Lightbulb size={16} className="text-amber-500" />
+            <Lightbulb size={16} className="text-primary" />
             <span className="text-sm font-semibold text-foreground">
               导语
             </span>
@@ -381,17 +378,24 @@ const KnowledgeTree = ({ nodes, rootNode }: KnowledgeTreeProps) => {
         </div>
       )}
 
-      {/* 板块卡片列表 */}
-      <div className="space-y-4">
-        {sectionNodes.map((section: KnowledgeNode, idx: number) => (
-          <SectionCard
-            key={section.id}
-            section={section}
-            index={idx}
-            allNodes={nodes}
-          />
-        ))}
-      </div>
+      {/* 内容区：优先用 content_markdown 渲染，旧数据 fallback 到 section 列表 */}
+      {contentNode && contentNode.content ? (
+        <div className="knowledge-tree-md">
+          <Markdown components={mdComponents}>
+            {contentNode.content}
+          </Markdown>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {sectionNodes.map((section: KnowledgeNode) => (
+            <SectionBlock
+              key={section.id}
+              section={section}
+              allNodes={nodes}
+            />
+          ))}
+        </div>
+      )}
 
       {/* 收尾 */}
       {closingNode && closingNode.content && (

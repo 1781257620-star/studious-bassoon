@@ -1,7 +1,7 @@
 import { logger } from '@lark-apaas/client-toolkit/logger';
 import { toast } from 'sonner';
 
-const SW_VERSION = 'v3';
+const SW_VERSION = 'v4';
 const SW_PATH = `sw.js?v=${SW_VERSION}`;
 
 let registration: ServiceWorkerRegistration | undefined;
@@ -9,6 +9,10 @@ let hasNewVersion = false;
 
 export function registerServiceWorker(): void {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return;
+  }
+
+  if (process.env.NODE_ENV === 'development') {
     return;
   }
 

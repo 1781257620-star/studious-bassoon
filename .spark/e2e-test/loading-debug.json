@@ -1,0 +1,5 @@
+{"cases":[
+  {"id":1,"priority":"p0","description":"打开首页书架，预期 5 秒内不再显示加载中，页面内容可见"},
+  {"id":2,"priority":"p0","description":"打开阅读页 /read?bookId=1，预期知识树内容正常渲染，不白屏不报错"},
+  {"id":3,"priority":"p0","description":"浏览器 console 无 JS 错误和未捕获异常"}
+]}

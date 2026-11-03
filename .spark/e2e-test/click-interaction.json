@@ -1,0 +1,9 @@
+{"cases":[
+  {"id":1,"priority":"p0","description":"首次打开书架页，预期 3 秒内渲染出书架标题、书籍卡片和底部导航"},
+  {"id":2,"priority":"p0","description":"首页书架渲染完成后，点击底部导航「阅读」tab，预期跳转到阅读页"},
+  {"id":3,"priority":"p0","description":"从阅读页点击底部导航「AI处理」tab，预期跳转到处理页"},
+  {"id":4,"priority":"p0","description":"从处理页点击底部导航「设置」tab，预期跳转到设置页"},
+  {"id":5,"priority":"p0","description":"从设置页点击底部导航「书架」tab，预期跳回书架首页"},
+  {"id":6,"priority":"p0","description":"首页书架渲染完成后，点击右上角 + 号按钮，预期弹出添加书籍对话框"},
+  {"id":7,"priority":"p0","description":"书架有书时点击书籍卡片，预期跳转到阅读页或处理页"}
+]}

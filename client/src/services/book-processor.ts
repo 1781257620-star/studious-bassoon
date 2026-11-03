@@ -440,7 +440,7 @@ class BookProcessor {
     }));
 
     let lastProgress = 40;
-    const existingSections: KnowledgeTreeSection[] = [];
+    let existingContentMarkdown = '';
 
     if (startChunk > 0) {
       const existingNodes = await db.nodes.listByBook(bookId);
@@ -452,16 +452,13 @@ class BookProcessor {
         await db.books.update(bookId, { treeChunkProgress: 0 });
       } else {
         const tempRootId = `temp_root_${bookId}`;
-        for (const node of existingNodes) {
-          if (node.parentId === tempRootId && node.nodeType === 'section') {
-            existingSections.push({
-              title: node.title,
-              subsections: [],
-            });
-          }
-        }
+        const contentNode = existingNodes.find(
+          (n: KnowledgeNode) =>
+            n.parentId === tempRootId && n.nodeType === 'content_markdown',
+        );
+        existingContentMarkdown = contentNode?.content || '';
         logger.info(
-          `断点续跑：树已完成 ${startChunk} 块，已有 ${existingSections.length} 个 section`,
+          `断点续跑：树已完成 ${startChunk} 块，已有 contentMarkdown ${existingContentMarkdown.length} 字`,
           bookId,
         );
       }
@@ -472,7 +469,7 @@ class BookProcessor {
       { title: book.title, author: book.author },
       {
         startChunkIndex: startChunk,
-        existingSections,
+        existingContentMarkdown,
         existingIntro: book.treeIntro,
         existingCoreLine: book.treeOverview,
         existingSource: book.treeSource,
@@ -484,20 +481,24 @@ class BookProcessor {
           }
           logger.info(phase, `${current}/${total}`);
         },
-        onChunkComplete: async (chunkIndex: number, chunkResult: Pick<KnowledgeTreeResult, 'sections'> & Partial<KnowledgeTreeResult>) => {
+        onChunkComplete: async (chunkIndex: number, chunkResult: Pick<KnowledgeTreeResult, 'contentMarkdown'> & Partial<KnowledgeTreeResult>) => {
           if (this.isCancelled(bookId)) return;
 
           const chunkNodes: KnowledgeNode[] = [];
           const tempRootId = `temp_root_${bookId}`;
 
-          for (const section of chunkResult.sections) {
-            this.buildSection(
-              chunkNodes,
+          if (chunkResult.contentMarkdown) {
+            const contentId = crypto.randomUUID();
+            chunkNodes.push({
+              id: contentId,
               bookId,
-              tempRootId,
-              section,
-              chapters,
-            );
+              parentId: tempRootId,
+              level: 1,
+              title: '知识树正文',
+              content: chunkResult.contentMarkdown,
+              childrenIds: [],
+              nodeType: 'content_markdown',
+            });
           }
 
           await db.nodes.bulkAdd(chunkNodes);
@@ -568,9 +569,20 @@ class BookProcessor {
     const introId = this.pushIntroNode(nodes, bookId, rootId, result);
     if (introId) rootChildren.push(introId);
 
-    for (const section of result.sections) {
-      const sectionId = this.buildSection(nodes, bookId, rootId, section, chapters);
-      rootChildren.push(sectionId);
+    // content_markdown 节点：存 markdown 全文
+    if (result.contentMarkdown) {
+      const contentId = crypto.randomUUID();
+      nodes.push({
+        id: contentId,
+        bookId,
+        parentId: rootId,
+        level: 1,
+        title: '知识树正文',
+        content: result.contentMarkdown,
+        childrenIds: [],
+        nodeType: 'content_markdown',
+      });
+      rootChildren.push(contentId);
     }
 
     const closingId = this.pushClosingNode(
@@ -831,7 +843,7 @@ class BookProcessor {
     snippet: string,
     chapters: Chapter[],
   ): ParagraphRef | null {
-    const cleanSnippet = snippet.trim().replace(/[""'']「」""''/g, '');
+    const cleanSnippet = snippet.trim().replace(/[""''「」""'']/g, '');
     if (cleanSnippet.length < 4) return null;
 
     let bestMatch: { chapter: Chapter; paraIndex: number; score: number } | null =
@@ -925,7 +937,31 @@ class BookProcessor {
         const fullText = chapters
           .map((c: Chapter) => c.paragraphs.join('\n'))
           .join('\n\n');
-        await aiService.identifyEntities(fullText);
+        const result = await aiService.identifyEntities(fullText);
+        const entityItems: EntityItem[] = [];
+        for (const p of result.persons || []) {
+          entityItems.push({
+            id: crypto.randomUUID(),
+            bookId,
+            name: p.name,
+            type: 'person',
+            occurrences: [],
+            description: p.description,
+          });
+        }
+        for (const pl of result.places || []) {
+          entityItems.push({
+            id: crypto.randomUUID(),
+            bookId,
+            name: pl.name,
+            type: 'place',
+            occurrences: [],
+            description: pl.description,
+          });
+        }
+        if (entityItems.length > 0) {
+          await db.entities.bulkAdd(entityItems);
+        }
       } catch (error) {
         logger.warn('实体识别跳过', bookId, error);
       }

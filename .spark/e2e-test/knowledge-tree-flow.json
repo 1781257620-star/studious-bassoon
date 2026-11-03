@@ -1,0 +1,19 @@
+{"cases":[
+  {"id":1,"priority":"p0","description":"打开书架首页，显示空态或书籍列表，+ 按钮可见"},
+  {"id":2,"priority":"p0","description":"点击 + 按钮打开添加书籍弹窗，显示示例文章和书名下载两个选项"},
+  {"id":3,"priority":"p0","description":"点击「加载内置示例文章」，弹窗关闭，书架上出现新书籍卡片"},
+  {"id":4,"priority":"p0","description":"示例书籍处理进度实时更新，状态从下载中依次变为解析中、切章中、生成知识树中、已生成知识树"},
+  {"id":5,"priority":"p0","description":"处理完成后点击书籍卡片，进入阅读器页面，显示知识树结构"},
+  {"id":6,"priority":"p1","description":"知识树叶节点可点击展开，显示对应原文段落"},
+  {"id":7,"priority":"p1","description":"AI 处理页显示书籍的 5 步流水线，已完成步骤打勾"},
+  {"id":8,"priority":"p0","description":"设置页显示 DeepSeek API Key 已配置状态"},
+  {"id":10,"priority":"p0","description":"阅读页顶部显示导语区，包含导语段落文字"},
+  {"id":14,"priority":"p0","description":"知识树采用板块→子板块→要点三级结构，子板块可展开收起"},
+  {"id":15,"priority":"p0","description":"要点展开后可见实例/金句/数据/实验等元素卡片，元素有对应类型标签"},
+  {"id":16,"priority":"p0","description":"元素卡片可点击「回溯原文」展示原文片段；未定位到原文时有明确提示"},
+  {"id":17,"priority":"p0","description":"底部有「总结与行动」板块，内含金句收束、一句话总结、可勾选行动清单"},
+  {"id":18,"priority":"p0","description":"行动清单项可点击勾选，勾选后文字显示删除线，计数实时更新"},
+  {"id":11,"priority":"p0","description":"AI 处理页对示例文章点击「用真实 AI 重新生成」，重新进入处理流程"},
+  {"id":12,"priority":"p0","description":"真实 AI 重新生成完成后，书籍「演示」标签消失，知识树内容为真实 AI 生成结果（非固定模板）"},
+  {"id":13,"priority":"p1","description":"真实 AI 生成的知识树叶节点可展开查看原文关联段落"}
+]}

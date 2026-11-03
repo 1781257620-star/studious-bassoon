@@ -1,0 +1,17 @@
+{
+  "name": "AI 阅读工作台",
+  "short_name": "AI 阅读",
+  "description": "本地 PWA 阅读应用，知识树阅读器",
+  "theme_color": "#F2ECDF",
+  "background_color": "#F2ECDF",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

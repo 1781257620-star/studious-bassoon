@@ -1,0 +1,4 @@
+{"cases":[
+  {"id":1,"priority":"p0","description":"浏览器内直接 fetch DeepSeek 最小请求（max_tokens=100），验证 30 秒内返回响应或错误，不会永久挂起"},
+  {"id":2,"priority":"p0","description":"验证 setTimeout + Promise.race 的 5 秒超时对挂起的 fetch 生效：用 AbortController 模拟超时，确认 Promise.race 能正确 reject"}
+]}

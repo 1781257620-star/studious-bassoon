@@ -78,6 +78,7 @@ export type KnowledgeNodeType =
   | 'action_item'
   | 'original_quote_group'
   | 'original_quote'
+  | 'content_markdown'
   | 'closing';
 
 export type ElementType = 'example' | 'quote' | 'data' | 'case' | 'experiment';
@@ -91,11 +92,11 @@ export const ELEMENT_LABELS: Record<ElementType, string> = {
 };
 
 export const ELEMENT_COLORS: Record<ElementType, string> = {
-  example: 'bg-amber-100 text-amber-700',
-  quote: 'bg-rose-100 text-rose-700',
-  data: 'bg-sky-100 text-sky-700',
-  case: 'bg-violet-100 text-violet-700',
-  experiment: 'bg-emerald-100 text-emerald-700',
+  example: 'bg-primary/10 text-primary',
+  quote: 'bg-primary/15 text-primary font-medium',
+  data: 'bg-accent text-foreground',
+  case: 'bg-secondary text-foreground',
+  experiment: 'bg-primary/20 text-primary',
 };
 
 export interface ParagraphRef {

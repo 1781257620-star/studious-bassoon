@@ -1,0 +1,5 @@
+{"cases":[
+  {"id":1,"priority":"p0","description":"打开书架首页，预期Service Worker成功注册并进入active状态"},
+  {"id":2,"priority":"p0","description":"刷新页面后，预期静态资源从SW缓存返回（来自service worker）"},
+  {"id":3,"priority":"p1","description":"页面有PWA manifest配置，预期应用支持安装"}
+]}
