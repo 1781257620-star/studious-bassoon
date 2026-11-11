@@ -190,6 +190,11 @@ function BookProcessCard({
                 演示
               </span>
             )}
+            {!book.isDemo && book.source === 'sample' && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-primary font-medium shrink-0">
+                真实生成
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{book.author}</p>
           <div className="flex items-center gap-2 mt-2">
@@ -281,59 +286,41 @@ function BookProcessCard({
                 <BookOpen size={14} />
                 开始阅读
               </Button>
-              {book.isDemo ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="w-full rounded-xl"
-                    onClick={() => onRetry(book.id)}
-                  >
-                    <RefreshCw size={14} />
-                    重新生成演示知识树
-                  </Button>
-                  {apiKeyConfigured && onForceRealAi ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full rounded-xl"
-                      onClick={() => onForceRealAi(book.id)}
-                    >
-                      <Sparkles size={14} />
-                      用真实 AI 重新生成
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full rounded-xl"
-                      onClick={onGoSettings}
-                    >
-                      <Settings size={14} />
-                      配置 API Key 用真实 AI 生成
-                    </Button>
-                  )}
-                </>
-              ) : apiKeyConfigured ? (
+              {apiKeyConfigured ? (
                 <Button
                   size="sm"
                   variant="secondary"
                   className="w-full rounded-xl"
-                  onClick={() => onForceRealAi?.(book.id)}
+                  onClick={() =>
+                    onForceRealAi ? onForceRealAi(book.id) : onRetry(book.id)
+                  }
                 >
                   <RefreshCw size={14} />
                   重新生成知识树
                 </Button>
               ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full rounded-xl"
-                  onClick={onGoSettings}
-                >
-                  <Settings size={14} />
-                  重新生成（需配置 API Key）
-                </Button>
+                <>
+                  {book.isDemo && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="w-full rounded-xl"
+                      onClick={() => onRetry(book.id)}
+                    >
+                      <RefreshCw size={14} />
+                      重新生成演示知识树
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full rounded-xl"
+                    onClick={onGoSettings}
+                  >
+                    <Settings size={14} />
+                    配置 API Key 用真实 AI 生成
+                  </Button>
+                </>
               )}
             </div>
           )}

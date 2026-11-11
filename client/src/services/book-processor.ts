@@ -159,13 +159,14 @@ class BookProcessor {
         });
       }
 
-      if (options.forceRealAi) {
-        await db.books.update(bookId, { isDemo: false });
-      }
-
+      // R-08：isDemo 只表示「这份内容是无 API Key 时生成的演示数据」。
+      // 只要配了 Key，内置示例书也一律走真实生成链路，不再读 buildDemoTree 的写死数据。
+      // isDemo 不在这里翻转，等真实生成跑完再改，避免「内容还是演示数据、标签却写真实生成」。
+      const demoRequested = await this.isDemoBook(bookId);
+      const hasApiKey = aiService.isConfigured();
       const useDemo = options.forceRealAi
         ? false
-        : options.useDemoTree ?? (await this.isDemoBook(bookId));
+        : (options.useDemoTree ?? (demoRequested && !hasApiKey));
 
       const currentBook = await db.books.get(bookId);
       if (!currentBook) throw new Error('书籍不存在');
@@ -206,7 +207,21 @@ class BookProcessor {
       const treeDone = currentBook.status === 'done' ||
         (hasNodes && treeProgress > 0 && this.isTreeComplete(currentBook));
 
-      if (!treeDone || options.forceRestart) {
+      // 已有树是演示数据、现在能走真实生成 → 必须整棵重做，不能断点续跑
+      const needRealRebuild = treeDone && demoRequested && !useDemo;
+      if (needRealRebuild) {
+        logger.info('演示数据将由真实生成替换，清理旧节点', bookId);
+        await db.nodes.clearByBook(bookId);
+        await db.entities.clearByBook(bookId);
+        await db.books.update(bookId, {
+          treeChunkProgress: 0,
+          treeIntro: '',
+          treeOverview: '',
+          treeSource: '',
+        });
+      }
+
+      if (!treeDone || options.forceRestart || needRealRebuild) {
         await this.stepTreeIncremental(
           bookId,
           currentChapters,
@@ -524,6 +539,11 @@ class BookProcessor {
       result,
     );
     await db.nodes.bulkAdd(allNodes);
+    if (book.isDemo) {
+      // 真实生成走完，这份内容才算真实数据
+      await db.books.update(bookId, { isDemo: false });
+      logger.info('演示书籍已由真实生成替换', bookId);
+    }
     await this.updateStatus(bookId, 'tree_generating', 80, options);
   }
 

@@ -22,7 +22,7 @@ const ReadPage = () => {
     setShowMenu(false);
     setRegenerating(true);
     try {
-      const forceReal = !book.isDemo && apiKeyConfigured;
+      const forceReal = apiKeyConfigured;
       await bookProcessor.startProcessing(book.id, { forceRealAi: forceReal });
       await refresh();
     } catch (err) {
@@ -210,9 +210,9 @@ const ReadPage = () => {
             {book.author}
           </p>
         </div>
-        {book.isDemo && (
+        {(book.isDemo || book.source === 'sample') && (
             <span className="hidden flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium sm:inline-block">
-            演示数据
+            {book.isDemo ? '演示数据' : '真实生成'}
           </span>
         )}
         <div className="relative flex-shrink-0">
@@ -244,34 +244,17 @@ const ReadPage = () => {
                   <RefreshCw size={16} className="text-primary" />
                   <div>
                     <div className="font-medium">
-                      {book.isDemo ? '重新生成演示知识树' : '重新生成知识树'}
+                      {book.isDemo && !apiKeyConfigured
+                        ? '重新生成演示知识树'
+                        : '重新生成知识树'}
                     </div>
-                    {!book.isDemo && !apiKeyConfigured && (
+                    {!apiKeyConfigured && (
                       <div className="text-xs text-muted-foreground">
                         需先配置 API Key
                       </div>
                     )}
                   </div>
                 </button>
-                {book.isDemo && apiKeyConfigured && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setShowMenu(false);
-                      setRegenerating(true);
-                      try {
-                        await bookProcessor.startProcessing(book.id, { forceRealAi: true });
-                        await refresh();
-                      } finally {
-                        setRegenerating(false);
-                      }
-                    }}
-                    className="w-full px-4 py-3 text-left text-sm text-foreground hover:bg-accent/50 active:bg-accent flex items-center gap-3 border-t border-border/60"
-                  >
-                    <Sparkles size={16} className="text-primary" />
-                    <div className="font-medium">用真实 AI 重新生成</div>
-                  </button>
-                )}
                 {!apiKeyConfigured && (
                   <button
                     type="button"
