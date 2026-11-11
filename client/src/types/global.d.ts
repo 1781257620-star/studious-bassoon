@@ -46,6 +46,12 @@ declare module '*.csv' {
   export default value;
 }
 
+// Vite 中以 ?raw 后缀导入的任意文件，均视为纯文本字符串
+declare module '*?raw' {
+  const value: string;
+  export default value;
+}
+
 declare namespace React {
   export interface CSSProperties {
     [key: `--${string}`]: string | number | undefined;

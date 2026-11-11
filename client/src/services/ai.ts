@@ -1,5 +1,6 @@
 import { logger } from '@lark-apaas/client-toolkit/logger';
 import { storage } from './storage';
+import treeRules from '../rules/knowledge-tree.md?raw';
 
 export interface AiConfig {
   apiKey: string | null;
@@ -276,16 +277,6 @@ class AiService {
     }
   }
 
-  async translate(text: string): Promise<string> {
-    return this.chat([
-      {
-        role: 'system',
-        content: '你是一个白话文翻译助手。将用户输入的文言文或拗口的句子翻译成通俗易懂的大白话，保持原意，简洁自然。',
-      },
-      { role: 'user', content: text },
-    ]);
-  }
-
   /** 每块目标字符数（输入侧，约 5000 字） */
   private readonly CHUNK_TARGET_CHARS = 5000;
   /** 单块最大输入字符（硬上限） */
@@ -381,18 +372,14 @@ class AiService {
       }
     }
 
-    onProgress?.(chunks.length + 1, totalSteps, '生成收尾');
-    const closing = await this.generateClosing(
-      contentMarkdown,
-      meta,
-    );
+    onProgress?.(chunks.length + 1, totalSteps, '合并结果');
 
     return {
       source,
       intro,
       coreLine,
       contentMarkdown,
-      closing,
+      closing: '',
       truncated: truncated || undefined,
       coverageNote: coverageNote || undefined,
     };
@@ -495,18 +482,14 @@ class AiService {
       options?.onChunkComplete?.(i, chunkResult);
     }
 
-    options?.onProgress?.(chunks.length + 1, totalSteps, '生成收尾');
-    const closing = await this.generateClosing(
-      contentMarkdown,
-      meta,
-    );
+    options?.onProgress?.(chunks.length + 1, totalSteps, '合并结果');
 
     return {
       source,
       intro,
       coreLine,
       contentMarkdown,
-      closing,
+      closing: '',
       truncated: truncated || undefined,
       coverageNote: coverageNote || undefined,
     };
@@ -594,7 +577,7 @@ class AiService {
     meta?: { title?: string; author?: string },
     isFirst: boolean = false,
   ): Promise<string> {
-    const systemPrompt = this.buildChunkSystemPrompt(isFirst);
+    const systemPrompt = this.buildSystemPrompt();
     const userPrompt = this.buildChunkUserPrompt(
       chunk,
       chunkIndex,
@@ -611,25 +594,6 @@ class AiService {
       0.6,
       this.CHUNK_MAX_OUTPUT_TOKENS,
     );
-  }
-
-  private buildChunkSystemPrompt(isFirst: boolean): string {
-    const base = this.buildSystemPrompt().replace(
-      '【输出格式——严格 JSON】',
-      isFirst
-        ? '【分块生成说明】\n' +
-          '这是全书知识树的第 1 块（共 N 块，由用户提示中告知）。你负责生成第一部分内容的知识树。\n' +
-          '第一块需要包含 source、intro、coreLine 三个顶层字段和第一部分的 contentMarkdown。\n' +
-          'intro 要说明全书背景和本次生成的覆盖范围；coreLine 中给出你基于本块内容提炼的全书核心主线（一句话）。\n' +
-          '不要生成 closing 收尾句，那会在所有块生成完成后单独生成。\n\n' +
-          '【输出格式——严格 JSON】'
-        : '【分块生成说明】\n' +
-          '这是全书知识树的中间/最后一块（第 i/N，由用户提示中告知）。前面的部分已经生成并合并。\n' +
-          '你只需要输出当前这块内容对应的 contentMarkdown（markdown 格式字符串），不需要生成 source、intro、coreLine、closing 等顶层字段。\n' +
-          '输出格式为 {"contentMarkdown": "...markdown 内容..."}，markdown 内容的结构与全书知识树中的一致。\n\n' +
-          '【输出格式——严格 JSON】',
-    );
-    return base;
   }
 
   private buildChunkUserPrompt(
@@ -722,160 +686,13 @@ class AiService {
     return { contentMarkdown };
   }
 
-  private async generateClosing(
-    contentMarkdown: string,
-    meta?: { title?: string; author?: string },
-  ): Promise<string> {
-    const bookLabel =
-      meta?.title || meta?.author
-        ? `${meta.title ? `《${meta.title}》` : ''}${meta.author ? ` 作者：${meta.author}` : ''}`
-        : '本书';
-
-    const prompt = `你是一位内容总结专家。基于以下知识树的 markdown 正文，为${bookLabel}生成一句收尾总结。
-
-【知识树正文（markdown 格式）】
-${contentMarkdown.slice(0, 2000)}
-
-请输出严格 JSON：
-{
-  "closing": "一句话收尾总结（有力概括全书核心，像 blockquote 式的收尾句，25-50字）"
-}
-
-要求：
-1. closing 是一句话收尾，凝练有力，像 blockquote 式的收束
-2. 高度概括全书核心主线，25-50字
-3. 只输出 JSON，不要任何其他文字或 markdown 包裹`;
-
-    const response = await this.chat(
-      [
-        { role: 'system', content: '你是一位严谨的内容总结专家，擅长从结构标题中提炼全书核心。输出严格 JSON。' },
-        { role: 'user', content: prompt },
-      ],
-      0.7,
-      512,
-    );
-
-    const cleaned = this.extractJson(response);
-    if (!cleaned) return '';
-
-    try {
-      const obj = JSON.parse(cleaned) as Record<string, unknown>;
-      return typeof obj.closing === 'string' && obj.closing.trim()
-        ? obj.closing
-        : '';
-    } catch {
-      return '';
-    }
-  }
-
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private buildSystemPrompt(): string {
-    return (
-      '你是一位知识树构建专家，擅长将长文内容拆解为结构清晰、覆盖完整、信息密集的知识树。' +
-      '你的任务不是写读后感或摘要，而是用分层结构精确还原原文的全部信息密度，让读者不读原文就能吸收所有核心精华。\n\n' +
-      '【输出结构铁律——违反即失败】\n' +
-      '全书知识树只有以下顶层字段：source、intro、coreLine、contentMarkdown、closing。除此之外不得出现任何其他顶层字段。\n' +
-      '1. 绝对禁止生成以下任何内容作为独立板块/子板块/字段：金句收束、行动清单、总结与行动、一句话总结、actionItems、actionList、oneSentenceSummary、finalQuote、summary。\n' +
-      '2. 收尾只有 closing 一个字段，是一句 blockquote 式的收束语（25-50字），不需要也不允许拆成多条。\n' +
-      '3. contentMarkdown 中只放知识内容正文，禁止把「总结」「金句」「行动」「清单」「收尾」等作为一级标题或独立板块。\n' +
-      '4. 原文引用用 markdown blockquote（> 格式）写在对应内容段落附近，不是独立一级板块。\n\n' +
-      '【生成方法论——严格按以下九步执行】\n\n' +
-      '第一步：完整读取、不丢细节\n' +
-      '基于用户提供的全文完整内容构建，先消化全部内容（含例子、数据、金句、实验、案例过程、方法步骤），' +
-      '不以印象或摘要代替原文。细节丢失即失败。\n\n' +
-      '第二步：全量内容盘点\n' +
-      '先做「全量内容盘点」——把全文的内容块全部列出，分类包括：\n' +
-      '- 概念与定义：核心概念是什么、有几种形式/类型\n' +
-      '- 机制与原理：底层规律、运作方式、因果链条\n' +
-      '- 案例与故事：含完整过程细节（背景→动作→结果），不缩写\n' +
-      '- 实验与数据：实验设计、样本、结论；具体数据数值与语境\n' +
-      '- 原文引语：原文原话（用于 markdown 引用块，保留原句原词）\n' +
-      '再基于盘点结果设计能容纳所有内容块、覆盖无遗漏的分层架构。不能让任何内容块无处安放；若某类内容无处安放，就补一层而不是删内容。\n\n' +
-      '第三步：剔除噪音\n' +
-      '广告、重复内容、口播废话、题外话、致谢、赞助信息一律剔除，不进入知识树。\n\n' +
-      '第四步：逻辑递进分层\n' +
-      '按「导语 → 本质 → 机制 → 双面影响 → 人群/场景影响 → 应对与破局 → 收尾」的默认骨架组织。' +
-      '允许按实际内容类型增删板块（例如工具方法论类可用「核心问题→底层原理→关键方法→实践步骤→常见误区→收尾」，' +
-      '人物传记类可用「背景身份→人生转折→核心成就→性格思想→历史影响」）。\n' +
-      '内容归位规则：\n' +
-      '- 概念/定义/形式/类型 → 本质层\n' +
-      '- 原理/机制/步骤/闭环 → 机制层\n' +
-      '- 好处/坏处/代价 → 双面影响层\n' +
-      '- 特定对象的差异化影响 → 人群/场景影响层\n' +
-      '- 方法/方案/工具/技巧 → 应对与破局层\n' +
-      '- 结论/核心论断 → 收尾句\n' +
-      '每个板块下设 2-3 层子标题（## → ### → ####），形成真正的层级结构，不是扁平清单。\n\n' +
-      '第五步：密集要点 + 配示例\n' +
-      '每个子标题下是密集要点列表（- bullet list 形式），要点类型包括：定义 / 机制 / 实验 / 案例 / 数据 / 现象 / 结论。\n' +
-      '每个要点采用「**观点短句**：说明文字」的融合写法，讲清楚说明白，杜绝只有标题没有说明。\n' +
-      '关键主张配【例】，完整过程不缩写；有实验/数据的写清实验设计与结论。\n' +
-      '实例/案例/数据用缩进 bullet 或在正文中用「【例】」「【数据】」「【实验】」等标签标注，每个例子含完整过程：背景→动作→结果。\n\n' +
-      '第六步：原文句群（blockquote）\n' +
-      '在每个子板块的合适位置，用 markdown blockquote（> 格式）呈现与该段内容直接相关的原文句子。\n' +
-      '- 保留原句原词，不得改写、不得编造\n' +
-      '- 散落全书各处的相关原文按议题重组归集\n' +
-      '- 每条原文末尾标注出处：「—— 出处章节标题」（与用户提示中的章节标题对应）\n' +
-      '- 控制总量：每个子板块取直接相关的若干句（精而不滥，宁缺毋滥），不要整段搬入无关上下文\n\n' +
-      '第七步：观点性命名\n' +
-      '## / ### 标题必须点出具体观点（如「稀缺的本质」「机制一：注意力俘获」「代价二：救火循环与负向飞轮」），' +
-      '禁止空泛词（如「机制总览」「全链路赋能」「核心要点」）。' +
-      '全文对象、指标、例子保持同名同口径，不混用近义词。\n\n' +
-      '第八步：markdown 排版规范\n' +
-      '- 用 `#` / `##` / `###` / `####` 做层级标题，观点性命名，不要空泛标题\n' +
-      '- 用 `- ` 做 bullet list（要点标题和内容融合：`**观点短句**：说明文字`）\n' +
-      '- 原文引用用 `> ` blockquote 格式，原文末尾同一行或下一行标注 `—— 出处章节`\n' +
-      '- 实例/案例/数据用缩进 bullet 或在正文中用 `【例】` `【数据】` `【实验】` 等标签标注\n' +
-      '- 层级数量根据内容自由决定，不强制固定层数\n' +
-      '- 板块之间保持逻辑递进\n\n' +
-      '第九步：生成后自校验\n' +
-      '输出前自查：\n' +
-      '1. 标题层级连续（## → ### → ####，没有跳层）\n' +
-      '2. 噪音=0（广告/口播/致谢全删）\n' +
-      '3. 覆盖度：盘点出的每个内容块都在 markdown 中命中，没有遗漏\n' +
-      '4. 要点充实：每个要点都有完整说明，不是只有观点词\n' +
-      '5. 原文句群准确：blockquote 中的引文来自原文、保留原句、标注章节\n' +
-      '6. 观点性命名：没有空泛标题\n' +
-      '7. 结构合规：没有 summary / actionItems / finalQuote / 金句收束 / 行动清单 / 一句话总结 等旧格式内容\n\n' +
-      '第十步：输出长度管控（极其重要）\n' +
-      '当原文内容较多、生成的知识树可能很长时，优先保证 JSON 结构的完整与合法性，' +
-      '宁可适当精简要点描述、合并相近子标题、减少非核心示例的展开，也绝不允许输出在中途截断导致 JSON 残缺。' +
-      '如果评估内容量接近输出上限，按以下优先级取舍：' +
-      '1）保留所有 ## / ### 级别的标题骨架（不能缺章少节）；' +
-      '2）保留每个要点的核心观点（说明文字可适当压缩到 1 句）；' +
-      '3）示例只保留最关键的 1-2 个，其余可省略；' +
-      '4）原文引用只保留最相关的 2-3 句，宁缺毋滥。' +
-      '最终输出必须是一个完整闭合的合法 JSON，任何情况下都不能以未闭合的数组或对象结尾。\n\n' +
-      '【JSON 转义规则——极其重要，输出前必查】\n' +
-      '1. 字符串内的中文引号「“”」「‘’」直接原样输出即可，不需要也不允许转成半角引号；\n' +
-      '2. 字符串内禁止使用半角双引号（"），如原文确有英文/半角引号，请统一改写为中文引号「“”」；\n' +
-      '3. contentMarkdown 中的 markdown 内容是 JSON 字符串值，其中的双引号必须转义为 \"，换行必须写为 \\n；\n' +
-      '4. blockquote 中的原文引文必须保留原文措辞，但其中的半角引号一律改写为中文引号，绝不留半角引号在 JSON 字符串内；\n' +
-      '5. 字符串中的反斜杠（\\）必须写为 \\\\，制表符必须写为 \\t；\n' +
-      '6. 输出完成后，用眼睛扫一遍 contentMarkdown 字符串的起止引号，确保字符串内容里没有裸露的半角双引号；\n' +
-      '7. 宁可用中文引号替换原文中的半角引号，也不能让 JSON 结构失效。\n\n' +
-      '【输出格式——严格 JSON】\n' +
-      '只输出 JSON，不要任何其他文字、markdown 代码块包裹或解释。顶层 JSON 结构如下：\n' +
-      '{\n' +
-      '  "source": "内容来源说明（书名/作者/内容类型，如「《稀缺》｜塞德希尔·穆来纳森｜理论概念类」）",\n' +
-      '  "intro": "导语段落（说明本知识树由什么内容梳理而成、已剔除哪些噪音、按哪些板块组织）",\n' +
-      '  "coreLine": "核心主线（一句话概括全书核心，是提炼后的核心论断）",\n' +
-      '  "contentMarkdown": "知识树主体内容（markdown 格式字符串，含 ##/### 标题、bullet list、blockquote 引用等）",\n' +
-      '  "closing": "收尾一句话总结（blockquote 式，有力收束，25-50字）"\n' +
-      '}\n\n' +
-      '要求：\n' +
-      '1. contentMarkdown 是 markdown 格式字符串，是知识树的主体内容；用 ## 做大板块标题（4-7 个），### 做子板块标题，层级之间逻辑递进清晰\n' +
-      '2. 要点内容是提炼后的成品干货，不是原文摘抄，但必须基于原文事实\n' +
-      '3. 每个要点必须含具体信息（定义/机制/数据/方法），禁止空话套话\n' +
-      '4. 实例/案例/实验必须保留完整过程，不缩写到只剩结论\n' +
-      '5. 原文引用用 > blockquote 格式、保留原句原词、标注章节出处、宁缺毋滥\n' +
-      '6. 全文对象、指标、例子保持同名同口径\n' +
-      '7. 只输出 JSON，不要任何其他文字或 markdown 包裹\n' +
-      '8. 结构合规：顶层字段仅限 source / intro / coreLine / contentMarkdown / closing；禁止 summary / actionItems / finalQuote / 金句收束 / 行动清单 / 一句话总结 等任何旧格式内容\n' +
-      '9. closing 是唯一收尾形式，一句话、blockquote 式、25-50字\n'
-    );
+    // 规则正文唯一来源：client/src/rules/knowledge-tree.md（勿在代码内重复维护）
+    return treeRules;
   }
 
   private buildUserPrompt(
@@ -1301,7 +1118,7 @@ ${contentMarkdown.slice(0, 2000)}
       intro,
       coreLine,
       contentMarkdown,
-      closing,
+      closing: '',
     };
     if (truncated !== undefined) result.truncated = truncated;
     if (coverageNote) result.coverageNote = coverageNote;
