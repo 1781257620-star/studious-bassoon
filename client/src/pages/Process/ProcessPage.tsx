@@ -190,11 +190,6 @@ function BookProcessCard({
                 演示
               </span>
             )}
-            {!book.isDemo && book.source === 'sample' && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent text-primary font-medium shrink-0">
-                真实生成
-              </span>
-            )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{book.author}</p>
           <div className="flex items-center gap-2 mt-2">

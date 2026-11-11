@@ -45,32 +45,49 @@ STEP_START=$(node -e "console.log(Date.now())")
 
 # 在 client/server 构建之前生成到 dist/，供 DefinePlugin 注入前端 bundle
 # 注意：nest-cli.json 中 deleteOutDir 必须为 false（模板默认值），否则 nest build 会清掉 dist/
-echo "   ├─ 生成 API 路由定义..."
-npx generate-api-routes --server-dir ./server --out-dir ./dist > /tmp/gen-api-routes.log 2>&1 &
-API_ROUTES_PID=$!
+# 生成器来自 @lark-apaas/devtool-kits（由 preset 间接安装）。只用本地命令：
+# 未安装时直接跳过，不走 npx，避免联网查同名包 404 的等待；preset 读不到文件会注入空路由。
+API_ROUTES_BIN="$ROOT_DIR/node_modules/.bin/generate-api-routes"
+PAGE_ROUTES_BIN="$ROOT_DIR/node_modules/.bin/generate-page-routes"
+API_ROUTES_PID=""
+PAGE_ROUTES_PID=""
 
-echo "   ├─ 生成页面路由定义..."
-npx generate-page-routes --app-path ./client/src/app.tsx --out-dir ./dist > /tmp/gen-page-routes.log 2>&1 &
-PAGE_ROUTES_PID=$!
-
-API_ROUTES_EXIT=0
-PAGE_ROUTES_EXIT=0
-
-wait $API_ROUTES_PID || API_ROUTES_EXIT=$?
-wait $PAGE_ROUTES_PID || PAGE_ROUTES_EXIT=$?
-
-if [ $API_ROUTES_EXIT -ne 0 ]; then
-  echo "   ⚠️  API 路由生成失败（不影响构建）"
-  cat /tmp/gen-api-routes.log
+if [ -x "$API_ROUTES_BIN" ]; then
+  echo "   ├─ 生成 API 路由定义..."
+  "$API_ROUTES_BIN" --server-dir ./server --out-dir ./dist > /tmp/gen-api-routes.log 2>&1 &
+  API_ROUTES_PID=$!
 else
-  echo "   ✅ API 路由生成完成"
+  echo "   ⏭️  未安装 generate-api-routes，跳过 API 路由定义生成"
 fi
 
-if [ $PAGE_ROUTES_EXIT -ne 0 ]; then
-  echo "   ⚠️  页面路由生成失败（不影响构建）"
-  cat /tmp/gen-page-routes.log
+if [ -x "$PAGE_ROUTES_BIN" ]; then
+  echo "   ├─ 生成页面路由定义..."
+  "$PAGE_ROUTES_BIN" --app-path ./client/src/app.tsx --out-dir ./dist > /tmp/gen-page-routes.log 2>&1 &
+  PAGE_ROUTES_PID=$!
 else
-  echo "   ✅ 页面路由生成完成"
+  echo "   ⏭️  未安装 generate-page-routes，跳过页面路由定义生成"
+fi
+
+if [ -n "$API_ROUTES_PID" ]; then
+  API_ROUTES_EXIT=0
+  wait $API_ROUTES_PID || API_ROUTES_EXIT=$?
+  if [ $API_ROUTES_EXIT -ne 0 ]; then
+    echo "   ⚠️  API 路由生成失败（不影响构建）"
+    cat /tmp/gen-api-routes.log
+  else
+    echo "   ✅ API 路由生成完成"
+  fi
+fi
+
+if [ -n "$PAGE_ROUTES_PID" ]; then
+  PAGE_ROUTES_EXIT=0
+  wait $PAGE_ROUTES_PID || PAGE_ROUTES_EXIT=$?
+  if [ $PAGE_ROUTES_EXIT -ne 0 ]; then
+    echo "   ⚠️  页面路由生成失败（不影响构建）"
+    cat /tmp/gen-page-routes.log
+  else
+    echo "   ✅ 页面路由生成完成"
+  fi
 fi
 print_time $STEP_START
 echo ""

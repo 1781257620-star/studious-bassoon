@@ -210,9 +210,9 @@ const ReadPage = () => {
             {book.author}
           </p>
         </div>
-        {(book.isDemo || book.source === 'sample') && (
+        {book.isDemo && (
             <span className="hidden flex-shrink-0 text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium sm:inline-block">
-            {book.isDemo ? '演示数据' : '真实生成'}
+            演示数据
           </span>
         )}
         <div className="relative flex-shrink-0">
